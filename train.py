@@ -117,9 +117,11 @@ for epoch in range(epochs):
 
         torch.save(
             {
-                "model_state_dict":model.state_dict(),
-                "english_vocab":english_vocab,
-                "urdu_vocab":urdu_vocab
+                "model_state_dict": model.state_dict(),
+                "english_word2idx": english_vocab.word2idx,
+                "english_idx2word": english_vocab.idx2word,
+                "urdu_word2idx": urdu_vocab.word2idx,
+                "urdu_idx2word": urdu_vocab.idx2word
             },
             "best_model.pth"
         )
