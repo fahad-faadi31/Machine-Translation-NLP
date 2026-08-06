@@ -6,13 +6,13 @@ from models.seq2seq import Encoder,Decoder,Seq2Seq
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-train_loader,test_loader,english_vocab,urdu_vocab=get_dataloaders()
+train_loader,validation_loader,english_vocab,urdu_vocab=get_dataloaders()
 
 input_size=len(english_vocab)
 output_size=len(urdu_vocab)
 
-embedding_size=256
-hidden_size=512
+embedding_size=128
+hidden_size=256
 num_layers=2
 dropout=0.3
 learning_rate=0.001
@@ -44,14 +44,16 @@ optimizer=optim.Adam(model.parameters(),lr=learning_rate)
 
 criterion=nn.CrossEntropyLoss(ignore_index=0)
 
-best_loss=float("inf")
+best_validation_loss=float("inf")
 
 for epoch in range(epochs):
+
     model.train()
 
-    total_loss=0
+    train_loss=0
 
     for source,target in train_loader:
+
         source=source.to(device)
         target=target.to(device)
 
@@ -66,18 +68,52 @@ for epoch in range(epochs):
 
         loss.backward()
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(),1)
+        torch.nn.utils.clip_grad_norm_(
+            model.parameters(),
+            max_norm=1
+        )
 
         optimizer.step()
 
-        total_loss+=loss.item()
+        train_loss+=loss.item()
 
-    average_loss=total_loss/len(train_loader)
+    average_train_loss=train_loss/len(train_loader)
 
-    print(f"Epoch [{epoch+1}/{epochs}] Loss: {average_loss:.4f}")
+    model.eval()
 
-    if average_loss<best_loss:
-        best_loss=average_loss
+    validation_loss=0
+
+    with torch.no_grad():
+
+        for source,target in validation_loader:
+
+            source=source.to(device)
+            target=target.to(device)
+
+            output=model(
+                source,
+                target,
+                teacher_force_ratio=0
+            )
+
+            output=output[:,1:].reshape(-1,output_size)
+            target=target[:,1:].reshape(-1)
+
+            loss=criterion(output,target)
+
+            validation_loss+=loss.item()
+
+    average_validation_loss=validation_loss/len(validation_loader)
+
+    print(
+        f"Epoch [{epoch+1}/{epochs}] "
+        f"Train Loss: {average_train_loss:.4f} "
+        f"Validation Loss: {average_validation_loss:.4f}"
+    )
+
+    if average_validation_loss<best_validation_loss:
+
+        best_validation_loss=average_validation_loss
 
         torch.save(
             {
