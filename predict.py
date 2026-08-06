@@ -1,6 +1,6 @@
 import torch
-from vocabulary import Vocabulary
 from models.seq2seq import Encoder,Decoder,Seq2Seq
+from vocabulary import Vocabulary
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -18,8 +18,8 @@ english_vocab.idx2word=checkpoint["english_idx2word"]
 urdu_vocab.word2idx=checkpoint["urdu_word2idx"]
 urdu_vocab.idx2word=checkpoint["urdu_idx2word"]
 
-input_size=len(english_vocab.word2idx)
-output_size=len(urdu_vocab.word2idx)
+input_size=len(english_vocab)
+output_size=len(urdu_vocab)
 
 embedding_size=64
 hidden_size=128
@@ -48,68 +48,74 @@ model=Seq2Seq(
     device
 ).to(device)
 
-model.load_state_dict(checkpoint["model_state_dict"])
+model.load_state_dict(
+    checkpoint["model_state_dict"]
+)
+
 model.eval()
 
 def translate(sentence,max_length=40):
-    tokens=sentence.lower().strip().split()
 
-    source=[english_vocab.word2idx["<SOS>"]]
+    tokens=[
+        english_vocab.word2idx["<SOS>"]
+    ]
 
-    for token in tokens:
-        source.append(
-            english_vocab.word2idx.get(
-                token,
-                english_vocab.word2idx["<UNK>"]
-            )
-        )
+    tokens+=english_vocab.numericalize(
+        sentence.lower()
+    )
 
-    source.append(
+    tokens.append(
         english_vocab.word2idx["<EOS>"]
     )
 
-    source=torch.tensor(source).unsqueeze(0).to(device)
+    source=torch.tensor(tokens).unsqueeze(0).to(device)
 
     with torch.no_grad():
+
         hidden,cell=model.encoder(source)
 
-    target=[urdu_vocab.word2idx["<SOS>"]]
+    input_token=torch.tensor(
+        [urdu_vocab.word2idx["<SOS>"]]
+    ).to(device)
+
+    translated=[]
 
     for _ in range(max_length):
 
-        x=torch.tensor([target[-1]]).to(device)
-
         with torch.no_grad():
+
             output,hidden,cell=model.decoder(
-                x,
+                input_token,
                 hidden,
                 cell
             )
 
-        best=output.argmax(1).item()
+        prediction=output.argmax(1).item()
 
-        if best==urdu_vocab.word2idx["<EOS>"]:
+        if prediction==urdu_vocab.word2idx["<EOS>"]:
             break
 
-        target.append(best)
+        translated.append(
+            urdu_vocab.idx2word.get(
+                prediction,
+                "<UNK>"
+            )
+        )
 
-    words=[]
+        input_token=torch.tensor(
+            [prediction]
+        ).to(device)
 
-    for index in target[1:]:
-        word=urdu_vocab.idx2word.get(index,"<UNK>")
+    return " ".join(translated)
 
-        if word not in ["<PAD>","<SOS>","<EOS>"]:
-            words.append(word)
-
-    return " ".join(words)
 
 while True:
 
-    sentence=input("Enter English sentence (or 'quit'): ")
+    sentence=input("Enter English sentence: ")
 
-    if sentence.lower()=="quit":
+    if sentence.lower()=="exit":
         break
 
-    translation=translate(sentence)
+    result=translate(sentence)
 
-    print(f"Urdu: {translation}\n")
+    print("Urdu:",result)
