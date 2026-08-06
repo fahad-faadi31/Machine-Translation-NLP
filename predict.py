@@ -1,8 +1,13 @@
 import torch
-from models.seq2seq import Encoder,Decoder,Seq2Seq
-from vocabulary import Vocabulary
 
-device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from vocabulary import Vocabulary
+from models.encoder import Encoder
+from models.decoder import Decoder
+from models.seq2seq import Seq2Seq
+
+device=torch.device(
+    "cuda" if torch.cuda.is_available() else "cpu"
+)
 
 checkpoint=torch.load(
     "best_model.pth",
@@ -21,8 +26,8 @@ urdu_vocab.idx2word=checkpoint["urdu_idx2word"]
 input_size=len(english_vocab)
 output_size=len(urdu_vocab)
 
-embedding_size=64
-hidden_size=128
+embedding_size=128
+hidden_size=256
 num_layers=2
 dropout=0.3
 
@@ -68,11 +73,15 @@ def translate(sentence,max_length=40):
         english_vocab.word2idx["<EOS>"]
     )
 
-    source=torch.tensor(tokens).unsqueeze(0).to(device)
+    source=torch.tensor(
+        tokens
+    ).unsqueeze(0).to(device)
 
     with torch.no_grad():
 
-        hidden,cell=model.encoder(source)
+        encoder_outputs,hidden,cell=model.encoder(
+            source
+        )
 
     input_token=torch.tensor(
         [urdu_vocab.word2idx["<SOS>"]]
@@ -87,7 +96,8 @@ def translate(sentence,max_length=40):
             output,hidden,cell=model.decoder(
                 input_token,
                 hidden,
-                cell
+                cell,
+                encoder_outputs
             )
 
         prediction=output.argmax(1).item()
@@ -111,11 +121,16 @@ def translate(sentence,max_length=40):
 
 while True:
 
-    sentence=input("Enter English sentence: ")
+    sentence=input(
+        "Enter English sentence: "
+    )
 
     if sentence.lower()=="exit":
         break
 
-    result=translate(sentence)
+    translation=translate(sentence)
 
-    print("Urdu:",result)
+    print(
+        "Urdu:",
+        translation
+    )
