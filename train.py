@@ -11,8 +11,8 @@ train_loader,validation_loader,english_vocab,urdu_vocab=get_dataloaders()
 input_size=len(english_vocab)
 output_size=len(urdu_vocab)
 
-embedding_size=128
-hidden_size=256
+embedding_size=64
+hidden_size=128
 num_layers=2
 dropout=0.3
 learning_rate=0.001
