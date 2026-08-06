@@ -39,7 +39,8 @@ model = Seq2Seq(
 
 checkpoint = torch.load(
     "best_model.pth",
-    map_location=device
+    map_location=device,
+    weights_only=False
 )
 
 model.load_state_dict(
